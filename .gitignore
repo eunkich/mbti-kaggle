@@ -1,0 +1,8 @@
+__pycache__
+
+# IDE configuration
+.vscode
+
+# Data files
+*.csv
+*.pkl
