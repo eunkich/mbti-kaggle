@@ -9,7 +9,7 @@ from train import ensemble
 
 
 def kaggle(args):
-    """Reproduce the original preprocessing from Kaggle"""
+    """Reproduce the original preprocessing from kaggle"""
     from data.corpus import load_kaggle
     from data.preprocess import CountVectorizer
 
@@ -19,6 +19,7 @@ def kaggle(args):
 
 
 def kaggle_masked(args):
+    """Reproduce + mask MBTI types"""
     from data.corpus import load_kaggle_masked
     from data.preprocess import CountVectorizer
 
@@ -27,11 +28,21 @@ def kaggle_masked(args):
     ensemble(loader, args)
 
 
+def kaggle_hypertext(args):
+    """Replace hypertext with its contents"""
+    from data.corpus import load_hypertext
+    from data.preprocess import CountVectorizer
+
+    posts, types = load_hypertext(verbose=args.verbose)
+    loader = CountVectorizer(posts, types, args)
+    ensemble(loader, args)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         description="MBTI classification from kaggle dataset"
     )
-    tasks = ['kaggle', 'kaggle_masked']
+    tasks = ['kaggle', 'kaggle_masked', 'kaggle_hypertext']
     parser.add_argument("--task", type=str, choices=tasks)
     parser.add_argument("--seed", type=str, default=-1)
     parser.add_argument('-q', "--quiet", action="store_true")

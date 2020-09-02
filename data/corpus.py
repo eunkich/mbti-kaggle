@@ -89,7 +89,8 @@ def load_kaggle(filename='kaggle.pkl', remove_stop_words=True, verbose=False):
     return posts, types
 
 
-def load_kaggle_masked(filename='kaggle_masked.pkl', remove_stop_words=True, verbose=False):
+def load_kaggle_masked(filename='kaggle_masked.pkl', remove_stop_words=True,
+                       verbose=False):
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
         posts, types = preprocess_kaggle(data, remove_stop_words, verbose)
@@ -100,6 +101,47 @@ def load_kaggle_masked(filename='kaggle_masked.pkl', remove_stop_words=True, ver
             masked = [MBTI_TOKEN if w in MBTI_TYPES else w for w in words]
             posts[idx] = " ".join(masked)
 
+        dict_data = {'posts': posts, 'type': types}
+        with open(filename, 'wb') as handle:
+            pickle.dump(dict_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
+
+    else:
+        log(f"Loading preprocessed data from {filename}", verbose)
+        with open(filename, 'rb') as handle:
+            dict_data = pickle.load(handle)
+        posts = dict_data['posts']
+        types = dict_data['type']
+
+    return posts, types
+
+
+def load_hypertext(filename='hypertext.pkl', remove_stop_words=True,
+                   verbose=False):
+    if not os.path.isfile(filename):
+        data = download(ID_PROCESSED, 'mbti_preprocessed.csv')
+
+        nltk.download('stopwords', quiet=not verbose)
+        nltk.download('wordnet', quiet=not verbose)
+        cachedStopWords = stopwords.words("english")
+        lemmatiser = WordNetLemmatizer()
+
+        # Remove and clean comments
+        posts = []
+        rows = data['preprocessed']
+        log("Preprocessing in kaggle-fashion", verbose)
+        if verbose:
+            rows = tqdm(rows, total=len(data))
+        for row in rows:
+            temp = re.sub('\s+', ' ', row).lower()
+            if remove_stop_words:
+                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
+            else:
+                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
+            posts.append(temp)
+
+        # Convert to numpy array
+        posts = np.array(posts)
+        types = np.array(data['type'].str.lower())
         dict_data = {'posts': posts, 'type': types}
         with open(filename, 'wb') as handle:
             pickle.dump(dict_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
