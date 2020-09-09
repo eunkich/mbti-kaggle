@@ -7,12 +7,9 @@ import pickle
 import numpy as np
 import pandas as pd
 import re
-from sklearn.preprocessing import LabelEncoder
-from sklearn.feature_extraction.text import CountVectorizer
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
-from contextlib import redirect_stdout
 from tqdm import tqdm
 from utils import log
 
@@ -23,26 +20,27 @@ ID_PROCESSED = "1-0yxLrIpq6f_avR3OfRvVVVtkVMKJ_Ic"
 MBTI_TYPES = ['infj', 'entp', 'intp', 'intj', 'entj', 'enfj', 'infp', 'enfp',
               'isfp', 'istp', 'isfj', 'istj', 'estp', 'esfp', 'estj', 'esfj']
 MBTI_TOKEN = '<MBTI>'
- 
+
 
 def download(file_id, filename):
     if not os.path.isfile(filename):
         # Request file from URL
         session = requests.Session()
-        response = session.get(URL, params = {'id': file_id}, stream = True)
+        response = session.get(URL, params={'id': file_id}, stream=True)
         for key, value in response.cookies.items():
             if key.startswith('download_warning'):
                 params = {'id': file_id, 'confirm': value}
                 response = session.get(URL, params=params, stream=True)
-    
+
         # Download file
         with open(filename, 'wb') as f:
-            f.write(response.content) 
+            f.write(response.content)
 
     return pd.read_csv(filename)
 
 
-def preprocess_kaggle(data, remove_stop_words=True, verbose=False):
+def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
+                      verbose=False):
     nltk.download('stopwords', quiet=not verbose)
     nltk.download('wordnet', quiet=not verbose)
     cachedStopWords = stopwords.words("english")
@@ -59,10 +57,11 @@ def preprocess_kaggle(data, remove_stop_words=True, verbose=False):
         temp = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', raw)
         temp = re.sub("[^a-zA-Z]", " ", temp)
         temp = re.sub('\s+', ' ', temp).lower()
-        if remove_stop_words:
-            temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
-        else:
-            temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
+        if lemmatize:
+            if remove_stop_words:
+                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
+            else:
+                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
         posts.append(temp)
 
     # Convert to numpy array
@@ -71,10 +70,10 @@ def preprocess_kaggle(data, remove_stop_words=True, verbose=False):
     return posts, types
 
 
-def load_kaggle(filename='kaggle.pkl', remove_stop_words=True, verbose=False):
+def load_kaggle(filename='kaggle.pkl', verbose=False, **kwargs):
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
-        posts, types = preprocess_kaggle(data, remove_stop_words, verbose)
+        posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
         dict_data = {'posts': posts, 'type': types}
         with open(filename, 'wb') as handle:
             pickle.dump(dict_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -89,11 +88,10 @@ def load_kaggle(filename='kaggle.pkl', remove_stop_words=True, verbose=False):
     return posts, types
 
 
-def load_kaggle_masked(filename='kaggle_masked.pkl', remove_stop_words=True,
-                       verbose=False):
+def load_kaggle_masked(filename='kaggle_masked.pkl', verbose=False, **kwargs):
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
-        posts, types = preprocess_kaggle(data, remove_stop_words, verbose)
+        posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
 
         log("Masking MBTI types", verbose)
         for idx in range(len(posts)):

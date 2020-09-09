@@ -1,11 +1,127 @@
 import numpy as np
+from scipy.sparse import issparse
 import pandas as pd
+import torch
+import torch.nn as nn
 import models
 from data.corpus import MBTI_TYPES
-from utils import log, one_hot
+from utils import log
 from sklearn.ensemble import StackingClassifier
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import f1_score
+
+
+def sgd(loader, args):
+    # K-fold validation
+    result = pd.DataFrame(
+        data=np.zeros((args.epochs + 1, 2)),
+        index=np.arange(args.epochs + 1),
+        columns=['accuracy', 'f1']
+    )
+    bs = args.batch_size
+
+    log(f'Begin training model "{args.model}"', args.verbose)
+    for idx, ((X_train, y_train), (X_test, y_test)) in enumerate(loader):
+        log('=' * 20 + f'  Subset {idx + 1}/{len(loader)}  ' + '=' * 20)
+
+        # Load deep learning classifier and optimizer
+        clf = getattr(models, args.model)(
+            loader.input_dim,
+            loader.output_dim,
+            args
+        ).to(args.device)
+        optim = torch.optim.Adam(
+            clf.parameters(),
+            lr=args.lr,
+            betas=(0.9, 0.99),
+            weight_decay=0.0
+        )
+        criterion = nn.CrossEntropyLoss()
+
+        # Initial validation
+        clf.eval()
+        num_batch = X_test.shape[0] // bs + (X_test.shape[0] % bs != 0)
+        s = 0
+        accs, scores = 0, 0
+        for _ in range(num_batch):
+            X = X_test[s:s + bs]
+            if issparse(X):
+                X = X.todense()
+            X = torch.FloatTensor(X).to(args.device)
+            pad_size = (0, max(0, args.max_features - X.shape[1]))
+            X = nn.ConstantPad1d(pad_size, 0)(X)
+            y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
+            outputs = clf(X)
+            preds = torch.max(outputs, dim=-1)[1]
+            accs += (preds == y).float().mean()
+            scores += f1_score(
+                y.cpu().numpy(),
+                preds.cpu().numpy(),
+                average='weighted'
+            )
+            s += bs
+        result.iloc[0]['accuracy'] += accs / len(loader)
+        result.iloc[0]['f1'] += scores / len(loader)
+
+        for e in range(args.epochs):
+            # Training
+            clf.train()
+            shuffled = np.arange(X_train.shape[0])
+            np.random.shuffle(shuffled)
+            num_batch = X_train.shape[0] // bs + (X_train.shape[0] % bs != 0)
+            s = 0
+            for _ in range(num_batch):
+                b_idx = shuffled[s:s + bs]
+                X = X_train[b_idx]
+                if issparse(X):
+                    X = X.todense()
+                X = torch.FloatTensor(X).to(args.device)
+                pad_size = (0, max(0, args.max_features - X.shape[1]))
+                X = nn.ConstantPad1d(pad_size, 0)(X)
+                y = torch.LongTensor(y_train[b_idx]).to(args.device)
+                outputs = clf(X)
+                loss = criterion(outputs, y)
+
+                optim.zero_grad()
+                loss.backward()
+                optim.step()
+                s += bs
+
+            # Validation
+            clf.eval()
+            num_batch = X_test.shape[0] // bs + (X_test.shape[0] % bs != 0)
+            s = 0
+            accs, scores = 0, 0
+            for _ in range(num_batch):
+                X = X_test[s:s + bs]
+                if issparse(X):
+                    X = X.todense()
+                X = torch.FloatTensor(X).to(args.device)
+                pad_size = (0, max(0, args.max_features - X.shape[1]))
+                X = nn.ConstantPad1d(pad_size, 0)(X)
+                y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
+                outputs = clf(X)
+                preds = torch.max(outputs, dim=-1)[1]
+                accs += (preds == y).float().mean()
+                scores += f1_score(
+                    y.cpu().numpy(),
+                    preds.cpu().numpy(),
+                    average='weighted'
+                )
+                s += bs
+
+            accs /= num_batch
+            scores /= num_batch
+            log("Epoch {:2d} - Accuracy: {:.4f}  F1: {:.4f}".format(
+                e + 1, accs, scores
+            ))
+            result.iloc[e + 1]['accuracy'] += accs / len(loader)
+            result.iloc[e + 1]['f1'] += scores / len(loader)
+
+    result.to_csv(args.output)
+    log(f"{args.n_splits}-fold cross validation result:\n")
+    print(result, end='\n\n')
+    log(f"Saved validation result to {args.output}")
 
 
 def ensemble(loader, args):

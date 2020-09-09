@@ -1,3 +1,4 @@
+from scipy.sparse import issparse
 from sklearn.base import TransformerMixin
 from sklearn.pipeline import Pipeline
 from sklearn.linear_model import SGDClassifier, PassiveAggressiveClassifier
@@ -25,7 +26,10 @@ class DenseTransformer(TransformerMixin):
         return self
 
     def transform(self, X, y=None, **fit_params):
-        return X.todense()
+        if issparse(X):
+            return X.todense()
+        else:
+            return X
 
 
 def gp_rbf(args):

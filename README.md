@@ -1,3 +1,9 @@
 # mbti-kaggle
 
-Stuff this up with code
+## Setup
+```python
+pip install -r requirements.txt
+```
+
+## Examples
+TODO

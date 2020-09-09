@@ -1,4 +1,5 @@
 __pycache__
+.empty
 
 # IDE configuration
 .vscode
@@ -6,3 +7,4 @@ __pycache__
 # Data files
 *.csv
 *.pkl
+*.npy
