@@ -3,68 +3,27 @@ import random
 import numpy as np
 import torch
 from train import ensemble, sgd
+from data.corpus import load_kaggle, load_kaggle_masked, load_hypertext
+from data.preprocess import CountVectorizer, LanguageModel
 
 
-def kaggle(args):
-    """Reproduce the original preprocessing from kaggle"""
-    from data.corpus import load_kaggle
-    from data.preprocess import CountVectorizer
-
-    posts, types = load_kaggle(verbose=args.verbose)
-    loader = CountVectorizer(posts, types, args)
-    ensemble(loader, args)
-
-
-def kaggle_masked(args):
-    """Reproduce + mask MBTI types"""
-    from data.corpus import load_kaggle_masked
-    from data.preprocess import CountVectorizer
-
-    posts, types = load_kaggle_masked(verbose=args.verbose)
-    loader = CountVectorizer(posts, types, args)
-    ensemble(loader, args)
-
-
-def kaggle_hypertext(args):
-    """Replace hypertext with its contents"""
-    from data.corpus import load_hypertext
-    from data.preprocess import CountVectorizer
-
-    posts, types = load_hypertext(verbose=args.verbose)
-    loader = CountVectorizer(posts, types, args)
-    ensemble(loader, args)
-
-
-def kaggle_sgd(args):
-    from data.corpus import load_kaggle_masked
-    from data.preprocess import CountVectorizer
-
-    posts, types = load_kaggle_masked(verbose=args.verbose)
-    loader = CountVectorizer(posts, types, args)
-    sgd(loader, args)
-
-
-def lm_sgd(args):
-    from data.corpus import load_kaggle_masked
-    from data.preprocess import LanguageModel
-
-    posts, types = load_kaggle_masked(
-        filename='kaggle_nolem.pkl',
-        lemmatize=False,
-        verbose=args.verbose,
-    )
-    loader = LanguageModel(posts, types, args,
-                           filename='kaggle_nolem_embed.npy')
-    sgd(loader, args)
-
-
-if __name__ == '__main__':
+def main():
     parser = argparse.ArgumentParser(
-        description="MBTI classification from kaggle dataset"
+            description="MBTI classification from kaggle dataset"
     )
-    tasks = ['kaggle', 'kaggle_masked', 'kaggle_hypertext']
-    tasks += ['kaggle_sgd', 'lm_sgd']
-    parser.add_argument("--task", type=str, choices=tasks)
+    dataset = ['load_kaggle', 'load_kaggle_masked', 'load_hypertext']
+    loader = ['CountVectorizer', 'LanguageModel']
+    method = ['ensemble', 'sgd']
+
+    parser.add_argument("--binary", type=bool, default=False)
+    parser.add_argument("--dataset", type=str, required=True,
+                        choices=dataset)
+    parser.add_argument("--loader", type=str, required=True,
+                        choices=loader)
+    parser.add_argument("--method", type=str, required=True,
+                        choices=method)
+     
+
     parser.add_argument("--seed", type=str, default=-1)
     parser.add_argument('-q', "--quiet", action="store_true")
     parser.add_argument('-o', "--output", type=str, default='result.csv')
@@ -102,4 +61,26 @@ if __name__ == '__main__':
     args.verbose = not args.quiet
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-    globals()[args.task](args)
+    wrapper(args)
+
+
+def binary_task(loader, args):
+    original_y = loader.y
+    for i in range(4):
+        print('Target Category | ', loader.lab_encoder.categories_[i])
+        loader.y = original_y[:,i]
+        globals()[args.method](loader, args)
+
+
+def wrapper(args):
+    posts, types = globals()[args.dataset](args=args)
+    loader = globals()[args.loader](posts, types, args)
+
+    if not args.binary:
+        globals()[args.method](loader, args)
+    else:
+        binary_task(loader, args)
+
+
+if __name__ == '__main__':
+    main()

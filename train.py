@@ -167,7 +167,7 @@ def ensemble(loader, args):
         log("Stacking - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
         # Record statistics for each classifier
-        C = len(MBTI_TYPES)
+        C = loader.output_dim
         probs = np.zeros((len(y_test), C))
         for idx, clf in enumerate(stack_clf.estimators_):
             pred = clf.predict(X_test)

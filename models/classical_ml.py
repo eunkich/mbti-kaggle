@@ -90,6 +90,7 @@ def logistic(args):
 
 
 def xgb_class(args):
+    num_class = 2 if args.binary else len(MBTI_TYPES)
     return xgb.XGBClassifier(
         objective='multi:softprob',
         eta=0.6,
@@ -98,7 +99,7 @@ def xgb_class(args):
         max_depth=2,
         verbosity=0,
         n_jobs=8,
-        num_class=len(MBTI_TYPES),  # FIXME: add as argument
+        num_class=num_class,
         gpu_id=0,
         tree_method='gpu_hist'
     )

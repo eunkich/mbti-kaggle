@@ -1,7 +1,7 @@
 import os
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.feature_extraction.text import CountVectorizer as Cntizer
-from sklearn.preprocessing import LabelEncoder, MaxAbsScaler, MinMaxScaler
+from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, MaxAbsScaler, MinMaxScaler
 from sklearn.pipeline import Pipeline
 from data.corpus import MBTI_TYPES
 import numpy as np
@@ -10,13 +10,25 @@ from transformers import AutoTokenizer, AutoModel
 from utils import log, restart
 from tqdm import tqdm
 
+def slicer(strType:str) -> list:
+    a,b,c,d = strType
+    listType = [a,b,c,d]
+    return listType
 
 # TODO: add multi-output option
 class CountVectorizer:
     def __init__(self, posts, types, args=None):
         self.X = posts
-        lab_encoder = LabelEncoder().fit(MBTI_TYPES)
-        self.y = lab_encoder.transform(types)
+        self.lab_encoder = LabelEncoder().fit(MBTI_TYPES)
+        self.y = self.lab_encoder.transform(types)
+        if args.binary:
+            s_types = []
+            for elem in types:
+                s_types.append(slicer(elem))
+            self.lab_encoder = OrdinalEncoder().fit(s_types)
+            #define binary_encoder
+            self.y = self.lab_encoder.transform(s_types)
+            
         self.cntizer = Pipeline([
             ('cntizer', Cntizer(
                 max_features=args.max_features,
@@ -49,8 +61,9 @@ class CountVectorizer:
 
 
 class LanguageModel:
-    def __init__(self, posts, types, args=None, filename='embed.npy'):
+    def __init__(self, posts, types, args=None, filename='_nolem_embed.npy'):
         self.args = args
+        filename = args.dataset + args.model + filename
         # FIXME: multiprocessing lock issue in tokenizer
         if not os.path.isfile(filename):
             self.create_embedding(posts, filename)
@@ -60,8 +73,14 @@ class LanguageModel:
         log(f"Loading embedding from {filename}", args.verbose)
         self.X = np.load(filename, mmap_mode='r')
 
-        lab_encoder = LabelEncoder().fit(MBTI_TYPES)
-        self.y = lab_encoder.transform(types)
+        self.lab_encoder = LabelEncoder().fit(MBTI_TYPES)
+        self.y = self.lab_encoder.transform(types)
+        if args.binary:
+            s_types = []
+            for elem in types:
+                s_types.append(slicer(elem))
+            self.lab_encoder = OrdinalEncoder().fit(s_types)
+            self.y = self.lab_encoder.transform(s_types)
         self.scaler = MinMaxScaler()
         self.kf = StratifiedShuffleSplit(n_splits=args.n_splits)
         self.input_dim = self.X.shape[1]

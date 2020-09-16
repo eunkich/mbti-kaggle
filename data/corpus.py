@@ -3,7 +3,7 @@
 """
 import os
 import requests
-import pickle
+import pickle5 as pickle
 import numpy as np
 import pandas as pd
 import re
@@ -19,6 +19,22 @@ ID_PROCESSED = "1-0yxLrIpq6f_avR3OfRvVVVtkVMKJ_Ic"
 
 MBTI_TYPES = ['infj', 'entp', 'intp', 'intj', 'entj', 'enfj', 'infp', 'enfp',
               'isfp', 'istp', 'isfj', 'istj', 'estp', 'esfp', 'estj', 'esfj']
+SLICED_TYPES = [['i', 'n', 'f', 'j'],
+                ['e', 'n', 't', 'p'],
+                ['i', 'n', 't', 'p'],
+                ['i', 'n', 't', 'j'],
+                ['e', 'n', 't', 'j'],
+                ['e', 'n', 'f', 'j'],
+                ['i', 'n', 'f', 'p'],
+                ['e', 'n', 'f', 'p'],
+                ['i', 's', 'f', 'p'],
+                ['i', 's', 't', 'p'],
+                ['i', 's', 'f', 'j'],
+                ['i', 's', 't', 'j'],
+                ['e', 's', 't', 'p'],
+                ['e', 's', 'f', 'p'],
+                ['e', 's', 't', 'j'],
+                ['e', 's', 'f', 'j']]
 MBTI_TOKEN = '<MBTI>'
 
 
@@ -70,7 +86,12 @@ def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
     return posts, types
 
 
-def load_kaggle(filename='kaggle.pkl', verbose=False, **kwargs):
+def load_kaggle(filename='kaggle.pkl', args=None, verbose=False, **kwargs):
+    verbose = args.verbose
+    if args.loader == 'LangusgeModel':
+        filename = 'kaggle_nolem.pkl'
+        lemmatize = False
+    
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
         posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
@@ -88,7 +109,12 @@ def load_kaggle(filename='kaggle.pkl', verbose=False, **kwargs):
     return posts, types
 
 
-def load_kaggle_masked(filename='kaggle_masked.pkl', verbose=False, **kwargs):
+def load_kaggle_masked(filename='kaggle_masked.pkl', args=None, **kwargs):
+    verbose = args.verbose
+    if args.loader == 'LanguageModel':
+        filename = args.dataset + args.model + 'kaggle_masked_nolem.pkl'
+        lemmatize = False
+    
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
         posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
@@ -113,8 +139,14 @@ def load_kaggle_masked(filename='kaggle_masked.pkl', verbose=False, **kwargs):
     return posts, types
 
 
-def load_hypertext(filename='hypertext.pkl', remove_stop_words=True,
+def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
                    verbose=False):
+    verbose = args.verbose
+    if args.loader == 'LangusgeModel':
+        filename = 'hypertext_nolem.pkl'
+        lemmatize = False
+    
+    
     if not os.path.isfile(filename):
         data = download(ID_PROCESSED, 'mbti_preprocessed.csv')
 
