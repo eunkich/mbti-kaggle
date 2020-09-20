@@ -2,6 +2,7 @@ import argparse
 import random
 import numpy as np
 import torch
+import string
 from train import ensemble, sgd
 from data.corpus import load_kaggle, load_kaggle_masked, load_hypertext
 from data.preprocess import CountVectorizer, LanguageModel
@@ -11,7 +12,7 @@ def main():
     parser = argparse.ArgumentParser(
             description="MBTI classification from kaggle dataset"
     )
-    dataset = ['load_kaggle', 'load_kaggle_masked', 'load_hypertext']
+    dataset = ['kaggle', 'kaggle_masked', 'hypertext']
     loader = ['CountVectorizer', 'LanguageModel']
     method = ['ensemble', 'sgd']
 
@@ -58,9 +59,12 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
-    # Unified result filename format
-    args.output = f'binary_{args.binary}_{args.dataset}_{args.loader}_{args.method}_' + args.output
 
+    # Unified result filename format
+    table = str.maketrans('', '', string.ascii_lowercase)
+    args.output = f'{args.dataset}_{args.loader.translate(table)}_{args.method}_' + args.output
+    
+    args.dataset = 'load_' + args.dataset
     args.verbose = not args.quiet
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
@@ -69,9 +73,14 @@ def main():
 
 def binary_task(loader, args):
     original_y = loader.y
+    original_output = args.output
     for i in range(4):
-        print('Target Category | ', loader.lab_encoder.categories_[i])
+        trg = loader.lab_encoder.categories_[i]
+        trg = trg.tolist()
+        print('Target Category | ', trg)
         loader.y = original_y[:,i]
+        trg = ''.join(trg).swapcase()
+        args.output = f'{trg}_{original_output}'
         globals()[args.method](loader, args)
 
 
