@@ -4,6 +4,7 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import models
+import os
 from data.corpus import MBTI_TYPES
 from utils import log
 from sklearn.ensemble import StackingClassifier
@@ -117,8 +118,10 @@ def sgd(loader, args):
             ))
             result.iloc[e + 1]['accuracy'] += accs / len(loader)
             result.iloc[e + 1]['f1'] += scores / len(loader)
+    
 
-    result.to_csv(args.output)
+    os.makedirs('./results', exist_ok = True)
+    result.to_csv('./results/' + args.output)
     log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")
@@ -190,7 +193,9 @@ def ensemble(loader, args):
         log("Voting   - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
     result /= args.n_splits
-    result.to_csv(args.output)
+    os.makedirs('./results', exist_ok = True)
+    result.to_csv('./results/' + args.output)
+    log(f"{args.n_splits}-fold cross validation result:\n")
     log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")

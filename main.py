@@ -15,7 +15,7 @@ def main():
     loader = ['CountVectorizer', 'LanguageModel']
     method = ['ensemble', 'sgd']
 
-    parser.add_argument("--binary", type=bool, default=False)
+    parser.add_argument("--binary", action='store_true')
     parser.add_argument("--dataset", type=str, required=True,
                         choices=dataset)
     parser.add_argument("--loader", type=str, required=True,
@@ -27,6 +27,7 @@ def main():
     parser.add_argument("--seed", type=str, default=-1)
     parser.add_argument('-q', "--quiet", action="store_true")
     parser.add_argument('-o', "--output", type=str, default='result.csv')
+    # User defined string at the end of the filename of the result
 
     parser.add_argument_group("Preprocessing options")
     parser.add_argument("--n_splits", type=int, default=10)
@@ -57,6 +58,8 @@ def main():
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed(args.seed)
+    # Unified result filename format
+    args.output = f'binary_{args.binary}_{args.dataset}_{args.loader}_{args.method}_' + args.output
 
     args.verbose = not args.quiet
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
