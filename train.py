@@ -196,6 +196,5 @@ def ensemble(loader, args):
     os.makedirs('./results', exist_ok = True)
     result.to_csv('./results/' + args.output)
     log(f"{args.n_splits}-fold cross validation result:\n")
-    log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")
