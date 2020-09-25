@@ -88,7 +88,7 @@ def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
 
 def load_kaggle(filename='kaggle.pkl', args=None, verbose=False, **kwargs):
     verbose = args.verbose
-    if args.loader == 'LangusgeModel':
+    if args.loader == 'LanguageModel':
         filename = 'kaggle_nolem.pkl'
         lemmatize = False
     
@@ -142,7 +142,7 @@ def load_kaggle_masked(filename='kaggle_masked.pkl', args=None, **kwargs):
 def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
                    verbose=False):
     verbose = args.verbose
-    if args.loader == 'LangusgeModel':
+    if args.loader == 'LanguageModel':
         filename = 'hypertext_nolem.pkl'
         lemmatize = False
     
