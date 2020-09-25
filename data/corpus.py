@@ -12,10 +12,13 @@ from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 from tqdm import tqdm
 from utils import log
+import unidecode
+import contractions
 
 URL = "https://docs.google.com/uc?export=download"
 ID_RAW = "1bphcWY5dd2J2rUgklIAYofd3hmsADdHX"
-ID_PROCESSED = "1-0yxLrIpq6f_avR3OfRvVVVtkVMKJ_Ic"
+ID_PROCESSED = "1XPuBDU0lIX4rd8eQrH1Aqo0FrgKJdvIs"
+
 
 MBTI_TYPES = ['infj', 'entp', 'intp', 'intj', 'entj', 'enfj', 'infp', 'enfp',
               'isfp', 'istp', 'isfj', 'istj', 'estp', 'esfp', 'estj', 'esfj']
@@ -36,6 +39,7 @@ SLICED_TYPES = [['i', 'n', 'f', 'j'],
                 ['e', 's', 't', 'j'],
                 ['e', 's', 'f', 'j']]
 MBTI_TOKEN = '<MBTI>'
+HYPERTEXT_TOKEN = '<HYPER>'
 
 
 def download(file_id, filename):
@@ -55,32 +59,45 @@ def download(file_id, filename):
     return pd.read_csv(filename)
 
 
-def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
-                      verbose=False):
+def preprocess(data, lemmatize=True, remove_stop_words=True):
+    #remove hypertext
     nltk.download('stopwords', quiet=not verbose)
     nltk.download('wordnet', quiet=not verbose)
     cachedStopWords = stopwords.words("english")
     lemmatiser = WordNetLemmatizer()
+    temp = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
+    #convert accented characters
+    temp = unidecode.unidecode(temp)
+    #expand contradictions
+    word = temp.split(" ")
+    temp = contractions.fix(temp)
+    #extract only english words
+    temp = re.sub("[^a-zA-Z]", " ", temp)
+    #remove extra masks
+    temp = re.sub("reyphyper reyphyper", ' ', temp).lower()
+    #띄어쓰기 한칸으로 맞추기
+    temp = re.sub('\s+', ' ', temp).lower()
+    #어근 추출
+    if lemmatize:
+        if remove_stop_words:
+            temp =  " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
+        else:
+            temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
+    temp = re.sub("reyphyper", '<hypertext>', temp)
+    #다시 붙이기
+    return temp
+    
 
+
+def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
+                      verbose=False):
     # Remove and clean comments
     posts = []
-    rows = data.iterrows()
     log("Preprocessing in kaggle-fashion", verbose)
-    if verbose:
-        rows = tqdm(rows, total=len(data))
-    for row in rows:
-        raw = row[1].posts
-        temp = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', raw)
-        temp = re.sub("[^a-zA-Z]", " ", temp)
-        temp = re.sub('\s+', ' ', temp).lower()
-        if lemmatize:
-            if remove_stop_words:
-                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
-            else:
-                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
-        posts.append(temp)
-
+    #if verbose:
+    #    rows = tqdm(rows, total=len(data))
     # Convert to numpy array
+    posts = data["posts"].apply(preprocess,args=[lemmatize,remove_stop_words])
     posts = np.array(posts)
     types = np.array(data['type'].str.lower())
     return posts, types
@@ -148,28 +165,14 @@ def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
     
     
     if not os.path.isfile(filename):
-        data = download(ID_PROCESSED, 'mbti_preprocessed.csv')
-
-        nltk.download('stopwords', quiet=not verbose)
-        nltk.download('wordnet', quiet=not verbose)
-        cachedStopWords = stopwords.words("english")
-        lemmatiser = WordNetLemmatizer()
-
+        data = download(ID_PROCESSED, 'mbti_masked.csv')
         # Remove and clean comments
         posts = []
-        rows = data['preprocessed']
         log("Preprocessing in kaggle-fashion", verbose)
-        if verbose:
-            rows = tqdm(rows, total=len(data))
-        for row in rows:
-            temp = re.sub('\s+', ' ', row).lower()
-            if remove_stop_words:
-                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
-            else:
-                temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
-            posts.append(temp)
-
+        #if verbose:
+            #rows = tqdm(rows, total=len(data))
         # Convert to numpy array
+        posts = data["posts"].apply(preprocess,args=[lemmatize,remove_stop_words])
         posts = np.array(posts)
         types = np.array(data['type'].str.lower())
         dict_data = {'posts': posts, 'type': types}
