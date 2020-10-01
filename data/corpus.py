@@ -59,10 +59,8 @@ def download(file_id, filename):
     return pd.read_csv(filename)
 
 
-def preprocess(data, lemmatize=True, remove_stop_words=True):
+def preprocess(text, lemmatize=True, remove_stop_words=True):
     #remove hypertext
-    nltk.download('stopwords', quiet=not verbose)
-    nltk.download('wordnet', quiet=not verbose)
     cachedStopWords = stopwords.words("english")
     lemmatiser = WordNetLemmatizer()
     temp = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
@@ -97,6 +95,8 @@ def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
     #if verbose:
     #    rows = tqdm(rows, total=len(data))
     # Convert to numpy array
+    nltk.download('stopwords')
+    nltk.download('wordnet')
     posts = data["posts"].apply(preprocess,args=[lemmatize,remove_stop_words])
     posts = np.array(posts)
     types = np.array(data['type'].str.lower())
@@ -158,7 +158,9 @@ def load_kaggle_masked(filename='kaggle_masked.pkl', args=None, **kwargs):
 
 def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
                    verbose=False):
-    verbose = args.verbose
+    #print("args is: \n", args)
+    #verbose = args.verbose
+    lemmatize = True
     if args.loader == 'LangusgeModel':
         filename = 'hypertext_nolem.pkl'
         lemmatize = False
@@ -172,6 +174,9 @@ def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
         #if verbose:
             #rows = tqdm(rows, total=len(data))
         # Convert to numpy array
+        
+        nltk.download('stopwords')
+        nltk.download('wordnet')
         posts = data["posts"].apply(preprocess,args=[lemmatize,remove_stop_words])
         posts = np.array(posts)
         types = np.array(data['type'].str.lower())
