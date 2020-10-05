@@ -14,11 +14,16 @@ from sklearn.metrics import f1_score
 
 def sgd(loader, args):
     # K-fold validation
+    args_dict = vars(args)
+    result_col = ['accuracy','f1'] + list(args_dict.keys())
     result = pd.DataFrame(
-        data=np.zeros((args.epochs + 1, 2)),
+        data=np.zeros((args.epochs + 1, len(result_col))),
         index=np.arange(args.epochs + 1),
-        columns=['accuracy', 'f1']
+        columns=result_col
     )
+    
+    result[list(args_dict.keys())] = list(args_dict.values())
+    
     bs = args.batch_size
 
     log(f'Begin training model "{args.model}"', args.verbose)
@@ -61,8 +66,9 @@ def sgd(loader, args):
                 average='weighted'
             )
             s += bs
-        result.iloc[0]['accuracy'] += accs / len(loader)
-        result.iloc[0]['f1'] += scores / len(loader)
+        accs_ = accs.detach().cpu().clone().numpy()
+        result.loc[0,'accuracy'] += accs_ / len(loader)
+        result.loc[0,'f1'] += scores / len(loader)
 
         for e in range(args.epochs):
             # Training
@@ -116,12 +122,23 @@ def sgd(loader, args):
             log("Epoch {:2d} - Accuracy: {:.4f}  F1: {:.4f}".format(
                 e + 1, accs, scores
             ))
-            result.iloc[e + 1]['accuracy'] += accs / len(loader)
-            result.iloc[e + 1]['f1'] += scores / len(loader)
+            accs_ = accs.detach().cpu().clone().numpy()
+            result.loc[e+1,'accuracy'] += accs_ / len(loader)
+            result.loc[e+1,'f1'] += scores / len(loader)
+            
     
-
     os.makedirs('./results', exist_ok = True)
-    result.to_csv('./results/' + args.output)
+    file_name = './results/' + args.output
+    
+    if os.path.isfile(file_name):
+        result_ = pd.read_csv(file_name,index_col=0)
+        result_ = result_.append(result)
+        result_.to_csv(file_name)
+    else:
+        result.to_csv(file_name)
+    
+    
+    #result.to_csv('./results/' + args.output)
     log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")
@@ -148,11 +165,14 @@ def ensemble(loader, args):
     )
 
     # K-fold validation
+    
+    
     result = pd.DataFrame(
         data=np.zeros((len(clfs) + 2, 3)),
         index=[c[0] for c in clfs] + ['voting', 'stacking'],
         columns=['accuracy', 'f1', 'weight']
     )
+    
     log('Begin training {} classifiers: {}'.format(
         len(clfs),
         " ".join([c[0] for c in clfs])
@@ -165,8 +185,12 @@ def ensemble(loader, args):
         pred = stack_clf.predict(X_test)
         acc = (pred == y_test).mean()
         score = f1_score(y_test, pred, average='weighted')
+        #acc_ = acc.detach().cpu().clone().numpy()
+        
         result.loc['stacking']['accuracy'] += acc
         result.loc['stacking']['f1'] += score
+
+        
         log("Stacking - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
         # Record statistics for each classifier
@@ -188,13 +212,40 @@ def ensemble(loader, args):
         pred = np.argmax(probs, axis=1)
         acc = (pred == y_test).mean()
         score = f1_score(y_test, pred, average='weighted')
-        result.loc['voting']['accuracy'] += acc
-        result.loc['voting']['f1'] += score
+        #acc_ = acc.detach().cpu().clone().numpy()
+        result.loc['stacking']['accuracy'] += acc
+        result.loc['stacking']['f1'] += score
+
+    
         log("Voting   - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
     result /= args.n_splits
+    
+    
+    args_dict = vars(args)
+    result_col = ['accuracy','f1','weight'] + list(args_dict.keys())
+    print(result_col, "\n\n\n\n\n",len(result_col), "\n\n\n\n\n")
+    result_ = pd.DataFrame(
+        data=np.zeros((len(clfs) + 2, len(result_col))),
+        index=[c[0] for c in clfs] + ['voting', 'stacking'],
+        columns=result_col
+    )
+    
+    result_[list(args_dict.keys())] = list(args_dict.values())
+    result_['accuracy'] = result['accuracy']
+    result_['f1'] = result['f1']
+    result_['weight'] = result['weight']
+    
+    
     os.makedirs('./results', exist_ok = True)
-    result.to_csv('./results/' + args.output)
+    file_name = './results/' + args.output
+    
+    if os.path.isfile(file_name):
+        result_ = pd.read_csv(file_name,index_col=0)
+        _result_ = result_.append(result_)
+        _result_.to_csv(file_name)
+    else:
+        result_.to_csv(file_name)
     log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")

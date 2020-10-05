@@ -91,7 +91,7 @@ def load_kaggle(filename='kaggle.pkl', args=None, verbose=False, **kwargs):
     if args.loader == 'LanguageModel':
         filename = 'kaggle_nolem.pkl'
         lemmatize = False
-    
+
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
         posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
@@ -114,7 +114,7 @@ def load_kaggle_masked(filename='kaggle_masked.pkl', args=None, **kwargs):
     if args.loader == 'LanguageModel':
         filename = args.dataset + args.model + 'kaggle_masked_nolem.pkl'
         lemmatize = False
-    
+
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
         posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
@@ -145,8 +145,8 @@ def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
     if args.loader == 'LanguageModel':
         filename = 'hypertext_nolem.pkl'
         lemmatize = False
-    
-    
+
+
     if not os.path.isfile(filename):
         data = download(ID_PROCESSED, 'mbti_preprocessed.csv')
 
