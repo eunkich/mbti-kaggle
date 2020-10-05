@@ -23,7 +23,6 @@ def main():
                         choices=loader)
     parser.add_argument("--method", type=str, required=True,
                         choices=method)
-     
 
     parser.add_argument("--seed", type=str, default=-1)
     parser.add_argument('-q', "--quiet", action="store_true")
@@ -63,7 +62,7 @@ def main():
     # Unified result filename format
     table = str.maketrans('', '', string.ascii_lowercase)
     args.output = f'{args.dataset}_{args.loader.translate(table)}_{args.method}_' + args.output
-    
+
     args.dataset = 'load_' + args.dataset
     args.verbose = not args.quiet
     args.device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -78,7 +77,7 @@ def binary_task(loader, args):
         trg = loader.lab_encoder.categories_[i]
         trg = trg.tolist()
         print('Target Category | ', trg)
-        loader.y = original_y[:,i]
+        loader.y = original_y[:, i]
         trg = ''.join(trg).swapcase()
         args.output = f'{trg}_{original_output}'
         globals()[args.method](loader, args)

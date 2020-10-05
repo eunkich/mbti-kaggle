@@ -146,7 +146,6 @@ def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
         filename = 'hypertext_nolem.pkl'
         lemmatize = False
 
-
     if not os.path.isfile(filename):
         data = download(ID_PROCESSED, 'mbti_preprocessed.csv')
 
