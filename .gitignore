@@ -1,5 +1,6 @@
 __pycache__
 .empty
+.ipynb_checkpoints
 
 # IDE configuration
 .vscode
@@ -8,3 +9,5 @@ __pycache__
 *.csv
 *.pkl
 *.npy
+results/
+result.txt

@@ -135,7 +135,6 @@ def sgd(loader, args):
     else:
         result.to_csv(file_name)
 
-
     #result.to_csv('./results/' + args.output)
     log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
@@ -164,13 +163,11 @@ def ensemble(loader, args):
     )
 
     # K-fold validation
-
     result = pd.DataFrame(
         data=np.zeros((len(clfs) + 2, 3)),
         index=[c[0] for c in clfs] + ['voting', 'stacking'],
         columns=['accuracy', 'f1', 'weight']
     )
-
     log('Begin training {} classifiers: {}'.format(
         len(clfs),
         " ".join([c[0] for c in clfs])
@@ -223,7 +220,6 @@ def ensemble(loader, args):
         index=[c[0] for c in clfs] + ['voting', 'stacking'],
         columns=result_col
     )
-
     result_[list(args_dict.keys())] = list(args_dict.values())
     result_['accuracy'] = result['accuracy']
     result_['f1'] = result['f1']
