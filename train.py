@@ -126,7 +126,8 @@ def sgd(loader, args):
             result.loc[e+1,'f1'] += scores / len(loader)
 
     os.makedirs('./results', exist_ok=True)
-    file_name = './results/' + args.output
+    file_name = './results/' + "result_table.csv"
+
 
     if os.path.isfile(file_name):
         result_ = pd.read_csv(file_name, index_col=0)
@@ -137,7 +138,6 @@ def sgd(loader, args):
 
     #result.to_csv('./results/' + args.output)
     log(f"{args.n_splits}-fold cross validation result:\n")
-    print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")
 
 
@@ -226,7 +226,7 @@ def ensemble(loader, args):
     result_['weight'] = result['weight']
 
     os.makedirs('./results', exist_ok=True)
-    file_name = './results/' + args.output
+    file_name = './results/' + "result_table.csv"
 
     if os.path.isfile(file_name):
         result_ = pd.read_csv(file_name, index_col=0)
