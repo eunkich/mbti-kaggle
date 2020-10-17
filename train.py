@@ -4,8 +4,8 @@ import pandas as pd
 import torch
 import torch.nn as nn
 import models
-import os
-from utils import log
+from utils import log, save_experiment_results
+from sklearn.utils import parallel_backend
 from sklearn.ensemble import StackingClassifier
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import f1_score
@@ -13,18 +13,13 @@ from sklearn.metrics import f1_score
 
 def sgd(loader, args):
     # K-fold validation
-    args_dict = vars(args)
-    result_col = ['accuracy','f1'] + list(args_dict.keys())
     result = pd.DataFrame(
-        data=np.zeros((args.epochs + 1, len(result_col))),
+        data=np.zeros((args.epochs + 1, 3)),
         index=np.arange(args.epochs + 1),
-        columns=result_col
+        columns=['accuracy', 'f1', 'weight']
     )
 
-    result[list(args_dict.keys())] = list(args_dict.values())
-
     bs = args.batch_size
-
     log(f'Begin training model "{args.model}"', args.verbose)
     for idx, ((X_train, y_train), (X_test, y_test)) in enumerate(loader):
         log('=' * 20 + f'  Subset {idx + 1}/{len(loader)}  ' + '=' * 20)
@@ -58,16 +53,16 @@ def sgd(loader, args):
             y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
             outputs = clf(X)
             preds = torch.max(outputs, dim=-1)[1]
-            accs += (preds == y).float().mean()
+            accs += (preds == y).float().mean() / num_batch
             scores += f1_score(
                 y.cpu().numpy(),
                 preds.cpu().numpy(),
                 average='weighted'
-            )
+            ) / num_batch
             s += bs
-        accs_ = accs.detach().cpu().clone().numpy()
-        result.loc[0,'accuracy'] += accs_ / len(loader)
-        result.loc[0,'f1'] += scores / len(loader)
+        accs = accs.detach().cpu().numpy()
+        result.loc[0, 'accuracy'] += accs / len(loader)
+        result.loc[0, 'f1'] += scores / len(loader)
 
         for e in range(args.epochs):
             # Training
@@ -122,22 +117,15 @@ def sgd(loader, args):
                 e + 1, accs, scores
             ))
             accs_ = accs.detach().cpu().clone().numpy()
-            result.loc[e+1,'accuracy'] += accs_ / len(loader)
-            result.loc[e+1,'f1'] += scores / len(loader)
+            result.loc[e + 1, 'accuracy'] += accs_ / len(loader)
+            result.loc[e + 1, 'f1'] += scores / len(loader)
 
-    os.makedirs('./results', exist_ok=True)
-    file_name = './results/' + "result_table.csv"
+    # Create spreadsheet with arguments
+    save_experiment_results(result, args, args.output)
 
-
-    if os.path.isfile(file_name):
-        result_ = pd.read_csv(file_name, index_col=0)
-        result_ = result_.append(result)
-        result_.to_csv(file_name)
-    else:
-        result.to_csv(file_name)
-
-    #result.to_csv('./results/' + args.output)
+    # Display training result
     log(f"{args.n_splits}-fold cross validation result:\n")
+    print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")
 
 
@@ -159,7 +147,6 @@ def ensemble(loader, args):
         final_estimator=models.logistic(args),
         stack_method='predict_proba',
         verbose=args.verbose,
-        n_jobs=-1,
     )
 
     # K-fold validation
@@ -176,7 +163,8 @@ def ensemble(loader, args):
         log('=' * 20 + f'  Subset {idx + 1}/{len(loader)}  ' + '=' * 20)
 
         # Train classifiers
-        stack_clf.fit(X_train, y_train)
+        with parallel_backend('threading'):
+            stack_clf.fit(X_train, y_train)
         pred = stack_clf.predict(X_test)
         acc = (pred == y_test).mean()
         score = f1_score(y_test, pred, average='weighted')
@@ -205,35 +193,17 @@ def ensemble(loader, args):
         pred = np.argmax(probs, axis=1)
         acc = (pred == y_test).mean()
         score = f1_score(y_test, pred, average='weighted')
-        result.loc['stacking']['accuracy'] += acc
-        result.loc['stacking']['f1'] += score
+        result.loc['voting']['accuracy'] += acc
+        result.loc['voting']['f1'] += score
 
         log("Voting   - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
     result /= args.n_splits
 
-    args_dict = vars(args)
-    result_col = ['accuracy', 'f1', 'weight'] + list(args_dict.keys())
-    print(result_col, "\n\n\n\n\n", len(result_col), "\n\n\n\n\n")
-    result_ = pd.DataFrame(
-        data=np.zeros((len(clfs) + 2, len(result_col))),
-        index=[c[0] for c in clfs] + ['voting', 'stacking'],
-        columns=result_col
-    )
-    result_[list(args_dict.keys())] = list(args_dict.values())
-    result_['accuracy'] = result['accuracy']
-    result_['f1'] = result['f1']
-    result_['weight'] = result['weight']
+    # Create spreadsheet with arguments
+    save_experiment_results(result, args, args.output)
 
-    os.makedirs('./results', exist_ok=True)
-    file_name = './results/' + "result_table.csv"
-
-    if os.path.isfile(file_name):
-        result_ = pd.read_csv(file_name, index_col=0)
-        _result_ = result_.append(result_)
-        _result_.to_csv(file_name)
-    else:
-        result_.to_csv(file_name)
+    # Display training result
     log(f"{args.n_splits}-fold cross validation result:\n")
     print(result, end='\n\n')
     log(f"Saved validation result to {args.output}")
