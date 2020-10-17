@@ -3,9 +3,10 @@ import random
 import numpy as np
 import torch
 import string
-from train import ensemble, sgd
-from data.corpus import load_kaggle, load_kaggle_masked, load_hypertext
-from data.preprocess import CountVectorizer, LanguageModel
+
+import train
+import data.corpus as corpus
+import data.preprocess as preprocess
 
 
 def main():
@@ -26,14 +27,15 @@ def main():
 
     parser.add_argument("--seed", type=str, default=-1)
     parser.add_argument('-q', "--quiet", action="store_true")
-    parser.add_argument('-o', "--output", type=str, default='result.csv')
+
     # User defined string at the end of the filename of the result
+    parser.add_argument('-o', "--output", type=str, default='result.csv')
 
     parser.add_argument_group("Preprocessing options")
     parser.add_argument("--n_splits", type=int, default=10)
     parser.add_argument("--max_features", type=int, default=1500)
-    parser.add_argument("--max_df", type=float, default=0.5)
-    parser.add_argument("--min_df", type=float, default=0.1)
+    parser.add_argument("--max_df", type=float, default=0.57)
+    parser.add_argument("--min_df", type=float, default=0.09)
     parser.add_argument("--lm", type=str, default='bert-base-uncased')
     parser.add_argument("--max_length", type=int, default=512)
 
@@ -61,7 +63,8 @@ def main():
 
     # Unified result filename format
     table = str.maketrans('', '', string.ascii_lowercase)
-    args.output = f'{args.dataset}_{args.loader.translate(table)}_{args.method}_' + args.output
+    prefix = f'{args.dataset}_{args.loader.translate(table)}_{args.method}_'
+    args.output = './results/' + prefix + args.output
 
     args.dataset = 'load_' + args.dataset
     args.verbose = not args.quiet
@@ -80,15 +83,14 @@ def binary_task(loader, args):
         loader.y = original_y[:, i]
         trg = ''.join(trg).swapcase()
         args.output = f'{trg}_{original_output}'
-        globals()[args.method](loader, args)
+        getattr(train, args.method)(loader, args)
 
 
 def wrapper(args):
-    posts, types = globals()[args.dataset](args=args)
-    loader = globals()[args.loader](posts, types, args)
-
+    posts, types = getattr(corpus, args.dataset)(args=args)
+    loader = getattr(preprocess, args.loader)(posts, types, args)
     if not args.binary:
-        globals()[args.method](loader, args)
+        getattr(train, args.method)(loader, args)
     else:
         binary_task(loader, args)
 
