@@ -10,7 +10,6 @@ import re
 import nltk
 from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
-from tqdm import tqdm
 from utils import log
 import unidecode
 import contractions
@@ -60,31 +59,29 @@ def download(file_id, filename):
 
 
 def preprocess(text, lemmatize=True, remove_stop_words=True):
-    #remove hypertext
+    # remove hypertext
     cachedStopWords = stopwords.words("english")
     lemmatiser = WordNetLemmatizer()
     temp = re.sub('http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', '', text)
-    #convert accented characters
+    # convert accented characters
     temp = unidecode.unidecode(temp)
-    #expand contradictions
-    word = temp.split(" ")
+    # expand contradictions
     temp = contractions.fix(temp)
-    #extract only english words
+    # extract only english words
     temp = re.sub("[^a-zA-Z]", " ", temp)
-    #remove extra masks
+    # remove extra masks
     temp = re.sub("reyphyper reyphyper", ' ', temp).lower()
-    #띄어쓰기 한칸으로 맞추기
+    # 띄어쓰기 한칸으로 맞추기
     temp = re.sub('\s+', ' ', temp).lower()
-    #어근 추출
+    # 어근 추출
     if lemmatize:
         if remove_stop_words:
-            temp =  " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
+            temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ') if w not in cachedStopWords])
         else:
             temp = " ".join([lemmatiser.lemmatize(w) for w in temp.split(' ')])
     temp = re.sub("reyphyper", '<hypertext>', temp)
-    #다시 붙이기
+    # 다시 붙이기
     return temp
-    
 
 
 def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
@@ -92,12 +89,13 @@ def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
     # Remove and clean comments
     posts = []
     log("Preprocessing in kaggle-fashion", verbose)
-    #if verbose:
-    #    rows = tqdm(rows, total=len(data))
-    # Convert to numpy array
     nltk.download('stopwords')
     nltk.download('wordnet')
-    posts = data["posts"].apply(preprocess,args=[lemmatize,remove_stop_words])
+    posts = data["posts"].apply(
+        preprocess,
+        args=[lemmatize, remove_stop_words]
+    )
+    # Convert to numpy array
     posts = np.array(posts)
     types = np.array(data['type'].str.lower())
     return posts, types
@@ -105,13 +103,15 @@ def preprocess_kaggle(data, lemmatize=True, remove_stop_words=True,
 
 def load_kaggle(filename='kaggle.pkl', args=None, verbose=False, **kwargs):
     verbose = args.verbose
-    if args.loader == 'LangusgeModel':
+    lemmatize = True
+    if args.loader == 'LanguageModel':
         filename = 'kaggle_nolem.pkl'
         lemmatize = False
-    
+
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
-        posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
+        posts, types = preprocess_kaggle(data, verbose=verbose,
+                                         lemmatize=lemmatize, **kwargs)
         dict_data = {'posts': posts, 'type': types}
         with open(filename, 'wb') as handle:
             pickle.dump(dict_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -128,13 +128,15 @@ def load_kaggle(filename='kaggle.pkl', args=None, verbose=False, **kwargs):
 
 def load_kaggle_masked(filename='kaggle_masked.pkl', args=None, **kwargs):
     verbose = args.verbose
+    lemmatize = True
     if args.loader == 'LanguageModel':
-        filename = args.dataset + args.model + 'kaggle_masked_nolem.pkl'
+        filename = 'kaggle_masked_nolem.pkl'
         lemmatize = False
-    
+
     if not os.path.isfile(filename):
         data = download(ID_RAW, 'mbti_1.csv')
-        posts, types = preprocess_kaggle(data, verbose=verbose, **kwargs)
+        posts, types = preprocess_kaggle(data, verbose=verbose,
+                                         lemmatize=lemmatize, **kwargs)
 
         log("Masking MBTI types", verbose)
         for idx in range(len(posts)):
@@ -156,30 +158,24 @@ def load_kaggle_masked(filename='kaggle_masked.pkl', args=None, **kwargs):
     return posts, types
 
 
-def load_hypertext(filename='hypertext.pkl', args=None, remove_stop_words=True,
-                   verbose=False):
-    #print("args is: \n", args)
-    #verbose = args.verbose
+def load_hypertext(filename='hypertext.pkl', args=None, **kwargs):
+    verbose = args.verbose
     lemmatize = True
-    if args.loader == 'LangusgeModel':
+    if args.loader == 'LanguageModel':
         filename = 'hypertext_nolem.pkl'
         lemmatize = False
-    
-    
+
     if not os.path.isfile(filename):
         data = download(ID_PROCESSED, 'mbti_masked.csv')
-        # Remove and clean comments
-        posts = []
-        log("Preprocessing in kaggle-fashion", verbose)
-        #if verbose:
-            #rows = tqdm(rows, total=len(data))
-        # Convert to numpy array
-        
-        nltk.download('stopwords')
-        nltk.download('wordnet')
-        posts = data["posts"].apply(preprocess,args=[lemmatize,remove_stop_words])
-        posts = np.array(posts)
-        types = np.array(data['type'].str.lower())
+        posts, types = preprocess_kaggle(data, verbose=verbose,
+                                         lemmatize=lemmatize, **kwargs)
+
+        log("Masking MBTI types", verbose)
+        for idx in range(len(posts)):
+            words = posts[idx].split(" ")
+            masked = [MBTI_TOKEN if w in MBTI_TYPES else w for w in words]
+            posts[idx] = " ".join(masked)
+
         dict_data = {'posts': posts, 'type': types}
         with open(filename, 'wb') as handle:
             pickle.dump(dict_data, handle, protocol=pickle.HIGHEST_PROTOCOL)
