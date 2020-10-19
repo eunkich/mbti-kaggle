@@ -9,6 +9,7 @@ from sklearn.utils import parallel_backend
 from sklearn.ensemble import StackingClassifier
 from sklearn.calibration import CalibratedClassifierCV
 from sklearn.metrics import f1_score
+from transformers import AdamW
 
 
 def sgd(loader, args):
@@ -30,11 +31,13 @@ def sgd(loader, args):
             loader.output_dim,
             args
         ).to(args.device)
-        optim = torch.optim.Adam(
+        if torch.cuda.device_count() > 1:
+            clf = nn.DataParallel(clf)
+        optimizer = AdamW(
             clf.parameters(),
             lr=args.lr,
-            betas=(0.9, 0.99),
-            weight_decay=0.0
+            betas=(0.5, 0.99),
+            weight_decay=args.weight_decay
         )
         criterion = nn.CrossEntropyLoss()
 
@@ -47,9 +50,10 @@ def sgd(loader, args):
             X = X_test[s:s + bs]
             if issparse(X):
                 X = X.todense()
-            X = torch.FloatTensor(X).to(args.device)
-            pad_size = (0, max(0, args.max_features - X.shape[1]))
-            X = nn.ConstantPad1d(pad_size, 0)(X)
+            X = torch.from_numpy(X).to(args.device)
+            if args.loader == 'CountVectorizer':
+                pad_size = (0, max(0, args.max_features - X.shape[1]))
+                X = nn.ConstantPad1d(pad_size, 0)(X)
             y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
             outputs = clf(X)
             preds = torch.max(outputs, dim=-1)[1]
@@ -76,16 +80,17 @@ def sgd(loader, args):
                 X = X_train[b_idx]
                 if issparse(X):
                     X = X.todense()
-                X = torch.FloatTensor(X).to(args.device)
-                pad_size = (0, max(0, args.max_features - X.shape[1]))
-                X = nn.ConstantPad1d(pad_size, 0)(X)
+                X = torch.from_numpy(X).to(args.device)
+                if args.loader == 'CountVectorizer':
+                    pad_size = (0, max(0, args.max_features - X.shape[1]))
+                    X = nn.ConstantPad1d(pad_size, 0)(X)
                 y = torch.LongTensor(y_train[b_idx]).to(args.device)
                 outputs = clf(X)
                 loss = criterion(outputs, y)
 
-                optim.zero_grad()
+                optimizer.zero_grad()
                 loss.backward()
-                optim.step()
+                optimizer.step()
                 s += bs
 
             # Validation
@@ -97,9 +102,10 @@ def sgd(loader, args):
                 X = X_test[s:s + bs]
                 if issparse(X):
                     X = X.todense()
-                X = torch.FloatTensor(X).to(args.device)
-                pad_size = (0, max(0, args.max_features - X.shape[1]))
-                X = nn.ConstantPad1d(pad_size, 0)(X)
+                X = torch.from_numpy(X).to(args.device)
+                if args.loader == 'CountVectorizer':
+                    pad_size = (0, max(0, args.max_features - X.shape[1]))
+                    X = nn.ConstantPad1d(pad_size, 0)(X)
                 y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
                 outputs = clf(X)
                 preds = torch.max(outputs, dim=-1)[1]

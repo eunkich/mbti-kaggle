@@ -46,9 +46,10 @@ def main():
     parser.add_argument("--hidden_dim", type=int, default=2048)
 
     parser.add_argument_group("Training options")
-    parser.add_argument("--lr", type=float, default=1e-3)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--lr", type=float, default=2e-5)
+    parser.add_argument("--weight_decay", type=float, default=0.0)
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--epochs", type=int, default=5)
 
     args = parser.parse_args()
 

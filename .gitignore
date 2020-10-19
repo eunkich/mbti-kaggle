@@ -2,6 +2,7 @@ __pycache__
 .empty
 .ipynb_checkpoints
 *.swp
+*.out
 
 # IDE configuration
 .vscode
