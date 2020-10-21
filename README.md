@@ -17,7 +17,7 @@ pip install -r requirements.txt
 
 ### Multiclass Classification
 
-Classification accuracy and F1 score under 3-fold cross validation (seed = 100)
+Classification accuracy and F1 score under 3-fold cross validation (single seed)
 
 | Preprocessing | Vectorization | Classifier | Accuracy | F1 | 
 |---|---|---|---|---|
@@ -36,3 +36,46 @@ Classification accuracy and F1 score under 3-fold cross validation (seed = 100)
 
 
 ## Usage
+
+The commands for reproducing the results for multiclass classification are shown below.
+
+Original + CountVectorizer + Classical ML
+```python
+python main.py --dataset kaggle \
+               --loader CountVectorizer \
+               --method ensemble \
+               --n_splits 3 \
+               --seed 100
+```
+
+Masked + CountVectorizer + MLP
+```python
+python main.py --dataset kaggle_masked \
+               --loader CountVectorizer \
+               --method sgd \
+               --model mlp3 \
+               --batch_size 16 \
+               --lr 2e-5 \
+               --epochs 10 \
+               --dropout 0.1 \
+               --bn \
+               --n_splits 3 \
+               --seed 100
+```
+
+Hypertext + LanguageModel + MLP  
+Note that the required vram is about 42Gb, due to the length of the input sequence.
+```python
+python main.py --dataset hypertext \
+               --loader LanguageModel \
+               --method sgd \
+               --model lm_classifier \
+               --lm xlnet-base-cased \
+               --max_length 1500 \
+               --batch_size 4 \
+               --lr 2e-5 \
+               --epochs 5 \
+               --n_splits 3 \
+               --seed 100
+```
+
