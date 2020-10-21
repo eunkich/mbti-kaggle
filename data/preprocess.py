@@ -34,7 +34,10 @@ class CountVectorizer:
             )),
             ('scaler', MaxAbsScaler()),
         ])
-        self.kf = StratifiedShuffleSplit(n_splits=args.n_splits)
+        self.kf = StratifiedShuffleSplit(
+            n_splits=args.n_splits,
+            random_state=args.seed
+        )
         self.input_dim = args.max_features
         self.output_dim = len(np.unique(self.y))
 
@@ -82,7 +85,10 @@ class LanguageModel:
                 s_types.append(slicer(elem))
             self.lab_encoder = OrdinalEncoder().fit(s_types)
             self.y = self.lab_encoder.transform(s_types)
-        self.kf = StratifiedShuffleSplit(n_splits=args.n_splits)
+        self.kf = StratifiedShuffleSplit(
+            n_splits=args.n_splits,
+            random_state=args.seed
+        )
         self.input_dim = self.X.shape[1]
         self.output_dim = len(np.unique(self.y))
 

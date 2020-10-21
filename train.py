@@ -22,8 +22,8 @@ def sgd(loader, args):
 
     bs = args.batch_size
     log(f'Begin training model "{args.model}"', args.verbose)
-    for idx, ((X_train, y_train), (X_test, y_test)) in enumerate(loader):
-        log('=' * 20 + f'  Subset {idx + 1}/{len(loader)}  ' + '=' * 20)
+    for ss, ((X_train, y_train), (X_test, y_test)) in enumerate(loader):
+        log('=' * 20 + f'  Subset {ss + 1}/{len(loader)}  ' + '=' * 20)
 
         # Load deep learning classifier and optimizer
         clf = getattr(models, args.model)(
@@ -53,7 +53,7 @@ def sgd(loader, args):
             X = torch.from_numpy(X).to(args.device)
             if args.loader == 'CountVectorizer':
                 pad_size = (0, max(0, args.max_features - X.shape[1]))
-                X = nn.ConstantPad1d(pad_size, 0)(X)
+                X = nn.ConstantPad1d(pad_size, 0)(X).float()
             y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
             outputs = clf(X)
             preds = torch.max(outputs, dim=-1)[1]
@@ -83,7 +83,7 @@ def sgd(loader, args):
                 X = torch.from_numpy(X).to(args.device)
                 if args.loader == 'CountVectorizer':
                     pad_size = (0, max(0, args.max_features - X.shape[1]))
-                    X = nn.ConstantPad1d(pad_size, 0)(X)
+                    X = nn.ConstantPad1d(pad_size, 0)(X).float()
                 y = torch.LongTensor(y_train[b_idx]).to(args.device)
                 outputs = clf(X)
                 loss = criterion(outputs, y)
@@ -105,7 +105,7 @@ def sgd(loader, args):
                 X = torch.from_numpy(X).to(args.device)
                 if args.loader == 'CountVectorizer':
                     pad_size = (0, max(0, args.max_features - X.shape[1]))
-                    X = nn.ConstantPad1d(pad_size, 0)(X)
+                    X = nn.ConstantPad1d(pad_size, 0)(X).float()
                 y = torch.LongTensor(y_test[s:s + bs]).to(args.device)
                 outputs = clf(X)
                 preds = torch.max(outputs, dim=-1)[1]
@@ -165,8 +165,8 @@ def ensemble(loader, args):
         len(clfs),
         " ".join([c[0] for c in clfs])
     ), args.verbose)
-    for idx, ((X_train, y_train), (X_test, y_test)) in enumerate(loader):
-        log('=' * 20 + f'  Subset {idx + 1}/{len(loader)}  ' + '=' * 20)
+    for ss, ((X_train, y_train), (X_test, y_test)) in enumerate(loader):
+        log('=' * 20 + f'  Subset {ss + 1}/{len(loader)}  ' + '=' * 20)
 
         # Train classifiers
         with parallel_backend('threading'):
@@ -200,13 +200,12 @@ def ensemble(loader, args):
         score = f1_score(y_test, pred, average='weighted')
         result.loc['voting']['accuracy'] += acc
         result.loc['voting']['f1'] += score
-        
+
         log("Voting   - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
-
     result /= args.n_splits
-    result['weight'] = result.weight / sum(result.weight) 
-    
+    result['weight'] = result.weight / sum(result.weight)
+
     # Create spreadsheet with arguments
     save_experiment_results(result, args, args.output)
 

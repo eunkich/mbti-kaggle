@@ -25,14 +25,14 @@ def main():
     parser.add_argument("--method", type=str, required=True,
                         choices=method)
 
-    parser.add_argument("--seed", type=str, default=-1)
+    parser.add_argument("--seed", type=int, default=-1)
     parser.add_argument('-q', "--quiet", action="store_true")
 
     # User defined string at the end of the filename of the result
     parser.add_argument('-o', "--output", type=str, default='result.csv')
 
     parser.add_argument_group("Preprocessing options")
-    parser.add_argument("--n_splits", type=int, default=10)
+    parser.add_argument("--n_splits", type=int, default=3)
     parser.add_argument("--max_features", type=int, default=1500)
     parser.add_argument("--max_df", type=float, default=0.57)
     parser.add_argument("--min_df", type=float, default=0.09)
@@ -53,7 +53,6 @@ def main():
 
     args = parser.parse_args()
 
-    # TODO: apply random seed to scikit-learn methods
     if args.seed == -1:
         random.seed(None)
         args.seed = random.randrange(0, int(1e4))
