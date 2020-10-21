@@ -194,18 +194,19 @@ def ensemble(loader, args):
             probs += clf.predict_proba(X_test)
             coef = stack_clf.final_estimator_.coef_[:, C * idx:(C + 1) * idx]
             result_clf['weight'] += np.linalg.norm(coef)
-
         # Record statistics for voting
         pred = np.argmax(probs, axis=1)
         acc = (pred == y_test).mean()
         score = f1_score(y_test, pred, average='weighted')
         result.loc['voting']['accuracy'] += acc
         result.loc['voting']['f1'] += score
-
+        
         log("Voting   - Accuracy: {:.4f}  F1: {:.4f}".format(acc, score))
 
-    result /= args.n_splits
 
+    result /= args.n_splits
+    result['weight'] = result.weight / sum(result.weight) 
+    
     # Create spreadsheet with arguments
     save_experiment_results(result, args, args.output)
 
